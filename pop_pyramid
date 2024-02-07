@@ -1,0 +1,78 @@
+#Load the required packages
+library(phecharts)
+library(ggplot2)
+library(dplyr)
+library(readxl)
+ 
+ 
+# Set working directory and read in the file
+ 
+setwd("~\\Population pyramid\\")
+ 
+df<-read_xlsx("my_data.xlsx",sheet = "tab1")
+ 
+#Change age to factors
+ 
+df<- df %>%
+     mutate(Age = factor(Age, levels = unique(Age)))
+   
+#Create two separate files for CPRD population and ref population
+ 
+Mypop <- df %>% filter(Group=="CPRD")
+Refpop <- df %>% filter(Group=="Registered GP pop")
+ 
+#Assigning negative proportions to males to depict on left side of the scale
+ 
+Mypop <- Mypop%>%
+         mutate(Prop = ifelse(Gender == "M",-Prop,Prop))
+ 
+Refpop <- Refpop%>%
+          mutate(Prop = ifelse(Gender == "M",-Prop,Prop))
+ 
+#Generating the points for our scale based on the maximum limits of the pop above and
+#dividing the scale by 3 points
+ 
+extremex <- scales::pretty_breaks(n = 3)(0:max(abs(c(Mypop$Prop,Refpop$Prop))))
+ 
+ 
+#Plotting the chart
+ 
+a <- unique(df$Gender)
+pal <- brewer_phe(names = TRUE)
+pal <- pal[c("PHEred","teal")] #define the colours you want
+names(pal) <- a
+ 
+plot <- ggplot(Mypop,aes(y = Prop, x = Age, fill = Gender)) +
+  geom_col() +
+  geom_line(data = mutate(Refpop, label = "GP registered population"),
+            aes(group = Gender, colour = label),
+            size = 1.5) +
+  coord_flip() +
+  scale_y_continuous(breaks = c(rev(-extremex),extremex[2:length(extremex)]),
+                     labels = abs(c(rev(extremex),extremex[2:length(extremex)]))) +
+  labs(x= "Age group", y = "Population proportion") +
+  theme_phe("phe") +
+  scale_fill_manual(values = pal,
+                    name = "Gender",
+                    labels = c("Female","Male")) +
+  scale_colour_manual(values = "black") +
+  theme(axis.text.x = element_text(angle = 0,
+                                   vjust = 0.5,
+                                   hjust = 1,
+                                   size = 14),
+        axis.text.y = element_text(size=14),
+        legend.text = element_text(size=16),
+        #legend.title = element_text(size=18),
+        legend.title = element_blank(),
+        legend.position ="bottom",
+        legend.box = "horizontal",
+        axis.title = element_text(size=18)) +
+  guides(fill = guide_legend(nrow = 2,
+                             byrow = 2))
+ 
+plot
+ 
+#Saving the image
+ggsave(filename="Poppyramid.jpeg",width=960/72,height=640/72,dpi=72)
+ 
+dev.off()
